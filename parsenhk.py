@@ -1,4 +1,5 @@
 #!/bin/python
+###dd# -*- coding: utf-8 -*-
 
 from bs4 import BeautifulSoup
 import json
@@ -6,7 +7,7 @@ from datetime import datetime
 import requests
 import os
 
-DEBUG=True
+DEBUG=False
 #dateselector= datetime.now().strftime('%Y%m%d')
 dateselector= datetime.now().strftime('%Y%m')
 #file_path = 'new.html'
@@ -23,9 +24,12 @@ def url_get(url):
   try:
     response = requests.get(url)
     response.raise_for_status()  # Vérifie les erreurs
-  except requests.exceptions.HTTPError as http_err:
+  except Exception as http_err:
     print(f"Erreur HTTP: {http_err}")
     exit(9)
+  coding=response.apparent_encoding
+  print("Grabbing {} (encoding {})".format(url,coding))
+  response.encoding = response.apparent_encoding
   html_content = response.text
   return html_content
 
@@ -33,17 +37,7 @@ def url_get(url):
 
 
 def url_to_json(url):
-    #with open(file_path, 'r', encoding='shift_jis') as file:
-    #    html_content = file.read()
-
-    try:
-      response = requests.get(url)
-      response.raise_for_status()  # Vérifie les erreurs
-    except requests.exceptions.HTTPError as http_err:
-      print(f"Erreur HTTP: {http_err}")
-      exit(9)
-    html_content = response.text
-
+    html_content=url_get(url)
     # Analyse le contenu HTML avec BeautifulSoup
     soup = BeautifulSoup(html_content, 'html.parser')
     
@@ -59,20 +53,23 @@ def url_to_json(url):
     json_data = json.dumps(data, ensure_ascii=False, indent=2)
     return json_data
 
-def url_to_file(url,archdir=nhknewsroot):
+def url_to_file(url,archdir=archivedir):
   #20241030/k10014623161000.html
   geturl='{}/{}'.format(nhknewsroot,url) 
   text=url_get(geturl)
   html=url.split('/')[1]
   datedir="{}/{}".format(archdir,url.split('/')[0])
+  outputfile="{}/{}".format(datedir,html)
   for d in archdir,datedir:
     if not os.path.exists(d):
         os.makedirs(d)
         debug("Creating {}".format(d))
     else:
         debug("dir {} exists".format(d))
-  with open(html, "w") as file:
-    print('Write {}'.format(html))
+  #with open(outputfile, "w", encoding='UTF-8') as file:
+  with open(outputfile, "w", encoding='SHIFT_JIS') as file:
+  #with open(outputfile, "w") as file:
+    print('Write {}'.format(outputfile))
     file.write(text)
 # main
 json_result = url_to_json(source)
@@ -83,5 +80,4 @@ for html in j['links']:
   h=html['href']
   selector=len(dateselector)
   if h.split('/')[0][0:selector] == dateselector:
-    #print(h)
     url_to_file(h)
