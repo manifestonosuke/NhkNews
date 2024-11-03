@@ -9,6 +9,12 @@ import unicodedata
 import requests
 import os
 
+#import  mutagen
+#from mutagen.easyid3 import EasyID3
+#from mutagen.mp3 import MP3
+#from mutagen.id3 import ID3, TIT1, TIT2, TIT3, ID3NoHeaderError
+import eyed3
+
 class Msg():
   def __init__(self,level='info'):
     self.level=level
@@ -59,7 +65,7 @@ class Msg():
     print("Error level is {0} : ".format(self.level))
 display=Msg('info')
 
-parser = argparse.ArgumentParser(description="このプログラムの説明.\nUse a csv file from anki with 2 kanjis per card forming words. Vocabulary list can also be checked for given kanjis.\nBase syntax kanala.py <anki csv file> [args] kanjis. For -w option anki file not needed",formatter_class=RawTextHelpFormatter)
+parser = argparse.ArgumentParser(description="Program to get NHK news podcast",formatter_class=RawTextHelpFormatter)
 parser.add_argument('-d','--debug',action="store_true",help='debug mode')
 args,noargs  = parser.parse_known_args()
 if args.debug==True:
@@ -73,8 +79,6 @@ wanted=""
 rawdata='/tmp/nhkindex.dict'
 
 def url_get(url,archive=False,archivepath='/dev/null',bin=False,mp3tag=None):
-  if mp3tag:
-    exit()
   if bin == True:
     openopt='wb'
   else:
@@ -98,8 +102,29 @@ def url_get(url,archive=False,archivepath='/dev/null',bin=False,mp3tag=None):
     else:
       display.info("writing {} as {}".format(archivepath,openopt))
       file.write(html_content)
+      file.close()
+      if mp3tag != None:
+        display.debug("Adding tag {} to {}".format(mp3tag,archivepath))
+        #audio = EasyID3(archivepath)
+        #audio = MP3(archivepath)
+        audio = eyed3.load(archivepath)
+        if audio.tag is None:
+          #audio.add_tags()
+          audio.initTag()
+        audio.tag.title = mp3tag
+        audio.tag.artist = "NHKラジオニュース" 
+        audio.tag.language = "Japanese"
+        audio.tag.version = (2, 3, 0) 
+        audio.tag.save(encoding='utf-16')
+        # Sauvegarde des modifications
+        audio.tag.save(encoding='utf-16')
+        #audio.tags.add(TIT1(encoding=1, text="NHKラジオニュース"))
+        #audio.tags.add(TIT2(encoding=1, text=mp3tag.encode('utf-16').decode('utf-16')))
+        #audio.tags.add(TIT3(encoding=1, text='du bon viel ascii'))
+        #audio['title']=mp3tag
+        #audio.save(v2_version=3)
+        exit()
   return html_content
-
 def xml_to_json(contents):
   json_data=data_dict = xmltodict.parse(contents) 
   return json_data
@@ -128,7 +153,6 @@ items=json_data['rss']['channel']['item']
 found=0
 for i in items:
   pubdate=i['pubDate'].split(',')[1:][0].split()
-  #print(pubdate)
   pubdate[1]=datetime.strptime(pubdate[1], '%b').month
   pubtime=pubdate[3]
   pubhour=pubtime.split(':')[0]
@@ -139,7 +163,7 @@ for i in items:
   url=i['enclosure']['@url']
   mp3_title=url.split('/')[-1]
   path="{}/{}{}{}/{}".format(archivedir,pubdate[2],pubdate[1],pubdate[0],mp3_title)
-  #print("[{}] Pubdate {} Title : {} \n Url : {}".format(pubhour,path,title,url))
-  response=url_get(url,archive=True,archivepath=path,bin=True)
+  display.debug("[{}h] {} Pubdate {} Title : {} \n --> Url : {}".format(pubhour,title_time,path,title,url))
+  response=url_get(url,archive=True,archivepath=path,bin=True,mp3tag=title_time)
   
 
