@@ -112,7 +112,7 @@ def url_get(url,archive=False,archivepath='/dev/null',bin=False,mp3tag=None):
           #audio.add_tags()
           audio.initTag()
         audio.tag.title = mp3tag
-        audio.tag.artist = "NHKラジオニュース" 
+        audio.tag.composer = "NHKラジオニュース" 
         audio.tag.language = "Japanese"
         audio.tag.version = (2, 3, 0) 
         audio.tag.save(encoding='utf-16')
@@ -123,7 +123,6 @@ def url_get(url,archive=False,archivepath='/dev/null',bin=False,mp3tag=None):
         #audio.tags.add(TIT3(encoding=1, text='du bon viel ascii'))
         #audio['title']=mp3tag
         #audio.save(v2_version=3)
-        exit()
   return html_content
 def xml_to_json(contents):
   json_data=data_dict = xmltodict.parse(contents) 
