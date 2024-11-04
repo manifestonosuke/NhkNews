@@ -62,7 +62,7 @@ class Msg():
     print("Error level is {0} : ".format(self.level))
 display=Msg('info')
 
-parser = argparse.ArgumentParser(description="Program to get NHK news podcast",formatter_class=RawTextHelpFormatter)
+parser = argparse.ArgumentParser(description="Program to get NHK news podcast.\nWithout argument will get all files.",formatter_class=RawTextHelpFormatter)
 parser.add_argument('-a','--audio',action="store_true",help='Grad audio only')
 parser.add_argument('-d','--debug',action="store_true",help='debug mode')
 parser.add_argument('-t','--text',action="store_true",help='Grad text only')
@@ -208,8 +208,6 @@ def get_audio_content(url):
 def main():
   display.debug("Args : {}".format(args))
   if args.audio == False and args.text == False:
-    print('A')
-    exit()
     args.audio=True
     args.text=True
   if args.text:
