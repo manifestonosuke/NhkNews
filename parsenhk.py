@@ -1,7 +1,7 @@
 #!/bin/python
 ###dd# -*- coding: utf-8 -*-
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup as bs
 import json
 from datetime import datetime
 import requests
@@ -39,7 +39,7 @@ def url_get(url):
 def url_to_json(url):
     html_content=url_get(url)
     # Analyse le contenu HTML avec BeautifulSoup
-    soup = BeautifulSoup(html_content, 'html.parser')
+    soup = bs(html_content, 'html.parser')
     
     # Dictionnaire pour stocker les données en JSON
     data = {}
@@ -56,7 +56,7 @@ def url_to_json(url):
 def url_to_file(url,archdir=archivedir):
   #20241030/k10014623161000.html
   geturl='{}/{}'.format(nhknewsroot,url) 
-  text=url_get(geturl)
+  html_content=url_get(geturl)
   html=url.split('/')[1]
   datedir="{}/{}".format(archdir,url.split('/')[0])
   outputfile="{}/{}".format(datedir,html)
@@ -66,15 +66,21 @@ def url_to_file(url,archdir=archivedir):
         debug("Creating {}".format(d))
     else:
         debug("dir {} exists".format(d))
-  #with open(outputfile, "w", encoding='UTF-8') as file:
-  with open(outputfile, "w", encoding='SHIFT_JIS') as file:
-  #with open(outputfile, "w") as file:
+  sjis=outputfile+'.sjis'
+  with open(sjis, "w", encoding='SHIFT_JIS') as file:
     print('Write {}'.format(outputfile))
-    file.write(text)
+    file.write(html_content)
+    file.close()
+  #<meta http-equiv="Content-Type" content="text/html; charset=Shift_JIS">
+  with open(outputfile, "w", encoding='utf-8') as file:
+    soup = bs(html_content,'html.parser')
+    modified=soup.find("meta", content="text/html; charset=Shift_JIS")
+    modified['content']='text/html; charset=utf-8'
+    print('Write utf8 {}'.format(outputfile))
+    file.write(str(soup))
 # main
 json_result = url_to_json(source)
 j=json.loads(json_result)
-#debug(j['links'])
 for html in j['links']:
   t=html['text']
   h=html['href']
