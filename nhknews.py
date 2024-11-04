@@ -77,9 +77,10 @@ nhknewsroot='https://k.nhk.jp/knews'
 feeddir='NhkFeeds'
 archivedir='{}/{}'.format(os.environ['HOME'],feeddir)
 wanted=""
-rawdata='/tmp/nhkindex.dict'
+idxsave='/tmp/nhkindex.dict'
 
 def url_get(url,archive=False,archivepath='/dev/null',bin=False,mp3tag=None):
+  display.info("Grabbing {}".format(url))
   if bin == True:
     openopt='wb'
   else:
@@ -91,7 +92,8 @@ def url_get(url,archive=False,archivepath='/dev/null',bin=False,mp3tag=None):
     display.error("Erreur HTTP: {}".format(http_err),fatal=True)
     exit(9)
   coding=response.apparent_encoding
-  display.info("Grabbing {} (encoding {})".format(url,coding))
+  if coding != None:
+    display.info("Done (encoding {})".format(coding))
   response.encoding = response.apparent_encoding
   if bin:
     html_content = response.content
@@ -99,10 +101,14 @@ def url_get(url,archive=False,archivepath='/dev/null',bin=False,mp3tag=None):
     html_content = response.text
   if archive:
     try:
-      file=open(archivepath,openopt) 
+      file=open(archivepath,openopt)
     except:
-      display.error("Can not open archive file {}".format(rawdata))
+      display.error("Can not open archive file {}".format(archivepath))
     else:
+      # test
+      #jptitle="/tmp/{}.{}".format(mp3tag,'mp3')
+      #file2=open(jptitle,openopt)
+      #file2.write(html_content)
       display.info("writing {} as {}".format(archivepath,openopt))
       file.write(html_content)
       file.close()
@@ -160,8 +166,6 @@ def url_to_file(url,archdir=archivedir):
     if not os.path.exists(d):
         os.makedirs(d)
         display.debug("Creating {}".format(d))
-    else:
-        display.debug("dir {} exists".format(d))
   sjis=outputfile+'.sjis'
   with open(sjis, "w", encoding='SHIFT_JIS') as file:
     display.info('Write sjis {}'.format(sjis))
@@ -186,7 +190,7 @@ def get_html_content(url):
       url_to_file(h)
 
 def get_audio_content(url):
-  idx_contents=url_get(url,archive=True,archivepath=rawdata)
+  idx_contents=url_get(url,archive=True,archivepath=idxsave)
   json_data=xml_to_json(idx_contents)
   items=json_data['rss']['channel']['item']
   found=0
@@ -200,7 +204,8 @@ def get_audio_content(url):
     title_time=title[1]
     date_number=title_time.split('時')[0][2:]
     url=i['enclosure']['@url']
-    mp3_title=url.split('/')[-1]
+    #mp3_title=url.split('/')[-1]
+    mp3_title='{}.{}'.format(title_time,'mp3')
     path="{}/{}{}{}/{}".format(archivedir,pubdate[2],pubdate[1],pubdate[0],mp3_title)
     display.debug("[{}h] {} Pubdate {} Title : {} \n --> Url : {}".format(pubhour,title_time,path,title,url))
     response=url_get(url,archive=True,archivepath=path,bin=True,mp3tag=title_time)
