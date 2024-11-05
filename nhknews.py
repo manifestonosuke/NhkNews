@@ -83,7 +83,7 @@ wanted=""
 idxsave='/tmp/nhkindex.dict'
 
 #def url_get(url,archive=False,archivepath='/dev/null',bin=False,mp3tag=None):
-def url_get(url,archive=False,archivepath='/dev/null',bin=False,mp3tag=None):
+def url_get(url,bin=False):
   display.info("Grabbing {}".format(url))
   if bin == True:
     openopt='wb'
@@ -187,7 +187,8 @@ def get_html_content(url):
       url_to_file(h)
 
 def get_audio_content(url):
-  idx_contents=url_get(url,archive=True,archivepath=idxsave)
+  #idx_contents=url_get(url,archive=True,archivepath=idxsave)
+  idx_contents=url_get(url)
   json_data=xml_to_json(idx_contents)
   items=json_data['rss']['channel']['item']
   found=0
