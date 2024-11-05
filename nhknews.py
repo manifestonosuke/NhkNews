@@ -65,6 +65,7 @@ display=Msg('info')
 parser = argparse.ArgumentParser(description="Program to get NHK news podcast.\nWithout argument will get all files.",formatter_class=RawTextHelpFormatter)
 parser.add_argument('-a','--audio',action="store_true",help='Grad audio only')
 parser.add_argument('-d','--debug',action="store_true",help='debug mode')
+parser.add_argument('-f','--force',action="store_true",help='debug mode')
 parser.add_argument('-t','--text',action="store_true",help='Grad text only')
 args,noargs  = parser.parse_known_args()
 if args.debug==True:
@@ -73,12 +74,15 @@ if args.debug==True:
 dateselector= datetime.now().strftime('%Y%m')
 source='https://www.nhk.or.jp/s-media/news/podcast/list/v1/all.xml'
 seiji='https://k.nhk.jp/knews/cat4_00.html'
+knewsroot='https://k.nhk.jp/knews/'
+knewsrange='[1,2,3,4,5,6,8,9]'
 nhknewsroot='https://k.nhk.jp/knews'
 feeddir='NhkFeeds'
 archivedir='{}/{}'.format(os.environ['HOME'],feeddir)
 wanted=""
 idxsave='/tmp/nhkindex.dict'
 
+#def url_get(url,archive=False,archivepath='/dev/null',bin=False,mp3tag=None):
 def url_get(url,archive=False,archivepath='/dev/null',bin=False,mp3tag=None):
   display.info("Grabbing {}".format(url))
   if bin == True:
@@ -99,40 +103,33 @@ def url_get(url,archive=False,archivepath='/dev/null',bin=False,mp3tag=None):
     html_content = response.content
   else:
     html_content = response.text
-  if archive:
-    try:
-      file=open(archivepath,openopt)
-    except:
-      display.error("Can not open archive file {}".format(archivepath))
-    else:
-      # test
-      #jptitle="/tmp/{}.{}".format(mp3tag,'mp3')
-      #file2=open(jptitle,openopt)
-      #file2.write(html_content)
-      display.info("writing {} as {}".format(archivepath,openopt))
-      file.write(html_content)
-      file.close()
-      if mp3tag != None:
-        display.debug("Adding tag {} to {}".format(mp3tag,archivepath))
-        #audio = EasyID3(archivepath)
-        #audio = MP3(archivepath)
-        audio = eyed3.load(archivepath)
-        if audio.tag is None:
-          #audio.add_tags()
-          audio.initTag()
-        audio.tag.title = mp3tag
-        audio.tag.composer = "NHKラジオニュース" 
-        audio.tag.language = "Japanese"
-        audio.tag.version = (2, 3, 0) 
-        audio.tag.save(encoding='utf-16')
-        # Sauvegarde des modifications
-        audio.tag.save(encoding='utf-16')
-        #audio.tags.add(TIT1(encoding=1, text="NHKラジオニュース"))
-        #audio.tags.add(TIT2(encoding=1, text=mp3tag.encode('utf-16').decode('utf-16')))
-        #audio.tags.add(TIT3(encoding=1, text='du bon viel ascii'))
-        #audio['title']=mp3tag
-        #audio.save(v2_version=3)
   return html_content
+  
+def data_to_file(data,archive,bin=False):
+  openopt='w'
+  if bin == False:
+    openopt='wb'
+  try:
+    file=open(archive,openopt)
+  except:
+    display.error("Can not open archive file {}".format(archive))
+    exit(9)
+  else:
+    display.info("writing {} as {}".format(archive,openopt))
+    file.write(data)
+  return 0
+
+def tag_file(archive,mp3tag):
+  display.debug("Adding tag {} to {}".format(mp3tag,archive))
+  audio = eyed3.load(archive)
+  if audio.tag is None:
+    audio.initTag()
+  audio.tag.title = mp3tag
+  audio.tag.composer = "NHKラジオニュース" 
+  audio.tag.language = "Japanese"
+  audio.tag.version = (2, 3, 0) 
+  audio.tag.save(encoding='utf-16')
+  return True
 
 def xml_to_json(contents):
   json_data=data_dict = xmltodict.parse(contents) 
@@ -207,8 +204,16 @@ def get_audio_content(url):
     #mp3_title=url.split('/')[-1]
     mp3_title='{}.{}'.format(title_time,'mp3')
     path="{}/{}{}{}/{}".format(archivedir,pubdate[2],pubdate[1],pubdate[0],mp3_title)
+    if os.path.exists(path):
+      if args.force != True:
+        display.info("File {} already exist skipping".format(path))
+        continue
+    else:
+      display.debug("File {} already, force option overwritting".format(path))
     display.debug("[{}h] {} Pubdate {} Title : {} \n --> Url : {}".format(pubhour,title_time,path,title,url))
-    response=url_get(url,archive=True,archivepath=path,bin=True,mp3tag=title_time)
+    response=url_get(url,bin=True)
+    data_to_file(response,path)
+    tag_file(path,title_time)
   
 def main():
   display.debug("Args : {}".format(args))
