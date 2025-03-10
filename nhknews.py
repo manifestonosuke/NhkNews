@@ -11,6 +11,9 @@ import os
 from bs4 import BeautifulSoup as bs
 import json
 import eyed3
+import signal
+
+
 
 class Msg():
   def __init__(self,level='info'):
@@ -63,10 +66,11 @@ class Msg():
 display=Msg('info')
 
 parser = argparse.ArgumentParser(description="Program to get NHK news podcast.\nWithout argument will get all files.",formatter_class=RawTextHelpFormatter)
-parser.add_argument('-a','--audio',action="store_true",help='Grad audio only')
+parser.add_argument('-a','--audio',action="store_true",help='grab audio only')
 parser.add_argument('-d','--debug',action="store_true",help='debug mode')
-parser.add_argument('-f','--force',action="store_true",help='debug mode')
-parser.add_argument('-t','--text',action="store_true",help='Grad text only')
+parser.add_argument('-f','--force',action="store_true",help='force re-downloading existing files')
+parser.add_argument('--sjis',action="store_true",help='the script reencode html in utf-8 use this otption if you want alsoi keep sjis file (named .html.sjis)')
+parser.add_argument('-t','--text',action="store_true",help='Grab text only')
 args,noargs  = parser.parse_known_args()
 if args.debug==True:
   display.set('debug')
@@ -74,13 +78,20 @@ if args.debug==True:
 dateselector= datetime.now().strftime('%Y%m')
 source='https://www.nhk.or.jp/s-media/news/podcast/list/v1/all.xml'
 seiji='https://k.nhk.jp/knews/cat4_00.html'
+knewssection={1:"社会",2:"暮らし",3:"科学・文化",4:"政治",5:"ビジネス",6:"国際",7:"スポーツ",8:"気象",9:"地域"}
 knewsroot='https://k.nhk.jp/knews/'
-knewsrange='[1,2,3,4,5,6,8,9]'
+knewsneed=[1,2,3,4,5,6,9]
 nhknewsroot='https://k.nhk.jp/knews'
 feeddir='NhkFeeds'
 archivedir='{}/{}'.format(os.environ['HOME'],feeddir)
 wanted=""
 idxsave='/tmp/nhkindex.dict'
+
+def handler(signum, frame):
+  display.info("然らば")
+  exit(0)
+
+signal.signal(signal.SIGINT, handler)
 
 #def url_get(url,archive=False,archivepath='/dev/null',bin=False,mp3tag=None):
 def url_get(url,bin=False):
@@ -97,12 +108,13 @@ def url_get(url,bin=False):
     exit(9)
   coding=response.apparent_encoding
   if coding != None:
-    display.info("Done (encoding {})".format(coding))
+    display.debug("Done (encoding {})".format(coding))
   response.encoding = response.apparent_encoding
   if bin:
     html_content = response.content
   else:
     html_content = response.text
+  display.debug("return code {} data length {}".format(response.status_code,len(response.content)))
   return html_content
   
 def data_to_file(data,archive,bin=False):
@@ -152,23 +164,31 @@ def url_to_json(url):
     json_data = json.dumps(data, ensure_ascii=False, indent=2)
     return json_data
 
-def url_to_file(url,archdir=archivedir):
+def url_to_file(url,title=None,archdir=archivedir):
   #20241030/k10014623161000.html
+  display.debug("Enter url_to_file {}".format(url))
   geturl='{}/{}'.format(nhknewsroot,url) 
   html_content=url_get(geturl)
   html=url.split('/')[1]
   datedir="{}/{}".format(archdir,url.split('/')[0])
-  outputfile="{}/{}".format(datedir,html)
+  if title != None:
+    outputfile="{}/{}".format(datedir,title)
+  else:
+    outputfile="{}/{}".format(datedir,html)
+  if os.path.exists(outputfile):
+    if args.force != True:
+      display.info("Skipping file {} exist".format(outputfile))
+      return True 
   for d in archdir,datedir:
     if not os.path.exists(d):
         os.makedirs(d)
         display.debug("Creating {}".format(d))
-  sjis=outputfile+'.sjis'
-  with open(sjis, "w", encoding='SHIFT_JIS') as file:
-    display.info('Write sjis {}'.format(sjis))
-    file.write(html_content)
-    file.close()
-  #<meta http-equiv="Content-Type" content="text/html; charset=Shift_JIS">
+  if args.sjis == True:
+    sjis=outputfile+'.sjis'
+    with open(sjis, "w", encoding='SHIFT_JIS') as file:
+      display.info('Write sjis {}'.format(sjis))
+      file.write(html_content)
+      file.close()
   with open(outputfile, "w", encoding='utf-8') as file:
     soup = bs(html_content,'html.parser')
     modified=soup.find("meta", content="text/html; charset=Shift_JIS")
@@ -182,9 +202,12 @@ def get_html_content(url):
   for html in j['links']:
     t=html['text']
     h=html['href']
+    if t[0] == '･':
+      t=t[1:]
+    t="{}.html".format(t)
     selector=len(dateselector)
     if h.split('/')[0][0:selector] == dateselector:
-      url_to_file(h)
+      url_to_file(h,t)
 
 def get_audio_content(url):
   #idx_contents=url_get(url,archive=True,archivepath=idxsave)
@@ -194,6 +217,7 @@ def get_audio_content(url):
   found=0
   for i in items:
     pubdate=i['pubDate'].split(',')[1:][0].split()
+    print(pubdate)
     pubdate[1]=datetime.strptime(pubdate[1], '%b').month
     pubtime=pubdate[3]
     pubhour=pubtime.split(':')[0]
@@ -204,13 +228,13 @@ def get_audio_content(url):
     url=i['enclosure']['@url']
     #mp3_title=url.split('/')[-1]
     mp3_title='{}.{}'.format(title_time,'mp3')
-    path="{}/{}{}{}/{}".format(archivedir,pubdate[2],pubdate[1],pubdate[0],mp3_title)
+    path="{}/{}{:02d}{}/{}".format(archivedir,pubdate[2],pubdate[1],pubdate[0],mp3_title)
     if os.path.exists(path):
       if args.force != True:
         display.info("File {} already exist skipping".format(path))
         continue
-    else:
-      display.debug("File {} already, force option overwritting".format(path))
+      else:
+        display.debug("File {} already, force option overwritting".format(path))
     display.debug("[{}h] {} Pubdate {} Title : {} \n --> Url : {}".format(pubhour,title_time,path,title,url))
     response=url_get(url,bin=True)
     data_to_file(response,path)
@@ -222,7 +246,13 @@ def main():
     args.audio=True
     args.text=True
   if args.text:
-    get_html_content(seiji)
+    for i in knewsneed:
+#seiji='https://k.nhk.jp/knews/cat4_00.html'
+#knewssection={1:"社会",2:"暮らし",3:"科学・文化",4:"政治",5:"ビジネス",6:"国際",7:"スポーツ",8:"気象",9:"地域"}
+#knewsroot='https://k.nhk.jp/knews/'
+      url="https://k.nhk.jp/knews/cat{}_00.html".format(i) 
+      display.debug("Getting section {}".format(knewssection[1]))
+      get_html_content(url)
   if args.audio:
     get_audio_content(source)
 
