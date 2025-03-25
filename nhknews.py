@@ -71,6 +71,7 @@ parser.add_argument('-d','--debug',action="store_true",help='debug mode')
 parser.add_argument('-f','--force',action="store_true",help='force re-downloading existing files')
 parser.add_argument('--sjis',action="store_true",help='the script reencode html in utf-8 use this otption if you want alsoi keep sjis file (named .html.sjis)')
 parser.add_argument('-t','--text',action="store_true",help='Grab text only')
+parser.add_argument('-T','--time',help='Grab text only')
 args,noargs  = parser.parse_known_args()
 if args.debug==True:
   display.set('debug')
@@ -209,7 +210,18 @@ def get_html_content(url):
     if h.split('/')[0][0:selector] == dateselector:
       url_to_file(h,t)
 
-def get_audio_content(url):
+def time_4_digits(value):
+  display.debug("hour digit {}".format(value))
+  if int(value) > 24 or int(value) < 0:
+    display.error("time must be between 1 to 24",fatal=True)
+  if len(str(value)) == 1:
+    twodigit='0'+str(value)
+  else:
+    twodigit=value
+  display.debug("chosen time for audio {}".format(twodigit))
+  return twodigit
+
+def get_audio_content(url,hour):
   #idx_contents=url_get(url,archive=True,archivepath=idxsave)
   idx_contents=url_get(url)
   json_data=xml_to_json(idx_contents)
@@ -217,7 +229,7 @@ def get_audio_content(url):
   found=0
   for i in items:
     pubdate=i['pubDate'].split(',')[1:][0].split()
-    print(pubdate)
+    display.debug("grad audio date {}".format(pubdate))
     pubdate[1]=datetime.strptime(pubdate[1], '%b').month
     pubtime=pubdate[3]
     pubhour=pubtime.split(':')[0]
@@ -225,6 +237,14 @@ def get_audio_content(url):
     title_date=title[0]
     title_time=title[1]
     date_number=title_time.split('時')[0][2:]
+    if hour != None:
+      hour=time_4_digits(hour)
+      display.debug("checking audio time {} {}".format(hour,title_time))
+      if hour != pubhour:
+        display.verbose("Skipping hour {} because differ {}".format(hour,pubhour))
+        continue
+    else:
+      print("any {}".format(title_time))
     url=i['enclosure']['@url']
     #mp3_title=url.split('/')[-1]
     mp3_title='{}.{}'.format(title_time,'mp3')
@@ -254,7 +274,7 @@ def main():
       display.debug("Getting section {}".format(knewssection[1]))
       get_html_content(url)
   if args.audio:
-    get_audio_content(source)
+    get_audio_content(source,args.time)
 
 if __name__ == '__main__':
   main()
