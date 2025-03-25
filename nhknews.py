@@ -71,7 +71,7 @@ parser.add_argument('-d','--debug',action="store_true",help='debug mode')
 parser.add_argument('-f','--force',action="store_true",help='force re-downloading existing files')
 parser.add_argument('--sjis',action="store_true",help='the script reencode html in utf-8 use this otption if you want alsoi keep sjis file (named .html.sjis)')
 parser.add_argument('-t','--text',action="store_true",help='Grab text only')
-parser.add_argument('-T','--time',help='Grab text only')
+parser.add_argument('-T','--time',help='If audio is chosen select time to limit download time of the day between  0 to 24')
 args,noargs  = parser.parse_known_args()
 if args.debug==True:
   display.set('debug')
