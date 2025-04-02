@@ -52,3 +52,12 @@ artist:
 album: 
 composer: NHKラジオニュース
 ```
+
+## Python deps 
+
+```
+python-beautifulsoup4
+python-xmltodict
+python-eyed3
+```
+
